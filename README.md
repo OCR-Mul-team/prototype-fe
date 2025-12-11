@@ -158,5 +158,5 @@ const socket = io('http://localhost:3001')  // 백엔드 서버 주소
 
 ## 관련 프로젝트
 
-- [autoscan-sell-backend](../autoscan-sell-backend) - 백엔드 서버
+- [prototype-socket](../prototype-socket) - 백엔드 서버
 
