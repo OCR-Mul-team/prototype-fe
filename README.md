@@ -1,99 +1,71 @@
-# AutoScan Sell 🚗
+# AutoScan Sell - Frontend
 
-**중고차 매입 서류 AI 분석 시스템**
+현대자동차 인증중고차 매입 서비스를 위한 고객용 웹 애플리케이션입니다.
 
-AutoScan Sell은 중고차 매매 상담원을 위한 AI 기반 서류 자동 분석 시스템입니다. 고객이 제출한 차량 관련 서류를 자동으로 스캔하고, OCR로 텍스트를 추출하며, 판매자 유형을 자동 분석하여 필요한 추가 서류를 안내하고, AI 기반 차량 가격을 산출합니다.
+## 프로젝트 소개
 
----
+AutoScan Sell은 중고차 매입 과정을 디지털화한 서비스입니다. 고객이 필요한 서류를 업로드하면 OCR로 자동 분석하고, AI 기반 가격 예측을 통해 예상 매입가를 제공합니다. 상담원과 실시간으로 연동되어 원활한 상담이 가능합니다.
 
-## ✨ 주요 기능
+### 주요 기능
 
-### 📄 **스마트 문서 OCR**
-- 드래그 앤 드롭 또는 클릭으로 간편한 파일 업로드
-- AI 기반 이미지 인식으로 자동 텍스트 추출
-- 추출된 데이터 실시간 수정 가능
-- 원본 이미지와 추출 데이터를 나란히 비교
+- **서류 업로드 및 OCR 분석**: 자동차등록증, 자동차세 완납증명서, 인감증명서, 사업자등록증 등을 업로드하면 OCR로 자동 인식
+- **AI 가격 예측**: 차량 정보를 입력하면 머신러닝 모델이 예상 매입가 범위를 산출
+- **실시간 상담원 연동**: Socket.IO를 통해 상담원과 실시간으로 서류 및 정보 공유
+- **가격 예측 보고서**: PDF로 다운로드 가능한 상세 가격 분석 보고서 제공
 
-### 🔍 **판매자 유형 자동 분석**
-- 차량등록증 분석으로 판매자 유형 자동 판별
-  - 개인
-  - 개인사업자
-  - 법인
-  - 미성년자
-- 판매자 유형에 따른 필수 추가 서류 자동 안내
+## 기술 스택
 
-### 💰 **AI 기반 차량 가격 산출**
-- 성능점검기록부 데이터 기반 가격 분석
-- 사고 이력, 주행거리, 차량 상태 종합 평가
-- 최소/최대 가격 범위 제시
-- 시장 동향 분석 (상승/안정/하락)
+- **React 18** + **TypeScript**
+- **Vite** - 빌드 도구
+- **Tailwind CSS** - 스타일링
+- **Zustand** - 상태 관리
+- **Socket.IO Client** - 실시간 통신
+- **Axios** - HTTP 클라이언트
+- **html2canvas** + **jsPDF** - PDF 생성
 
-### 📋 **지원 서류 종류**
+## 프로젝트 구조
 
-#### 필수 서류
-- 자동차등록증
-- 매도용 인감증명서
-- 자동차세완납증명서
-- 자동차성능점검기록부
+```
+src/
+├── components/           # 재사용 가능한 컴포넌트
+│   ├── DocumentUploader.tsx    # 서류 업로드 컴포넌트
+│   ├── Header.tsx              # 헤더
+│   ├── ImageViewerModal.tsx    # 이미지 뷰어 모달
+│   ├── PriceReportModal.tsx    # 가격 보고서 모달 (PDF 저장)
+│   └── VehicleInfoForm.tsx     # 차량 정보 입력 폼
+├── pages/                # 페이지 컴포넌트
+│   ├── CustomerPage.tsx        # 고객용 메인 페이지
+│   ├── AgentDashboard.tsx      # 상담원 대시보드
+│   └── AgentLoginPage.tsx      # 상담원 로그인 페이지
+├── services/             # API 서비스
+│   └── api.ts                  # OCR, 가격예측 API 호출
+├── store/                # 상태 관리
+│   └── useStore.ts             # Zustand 스토어
+├── hooks/                # 커스텀 훅
+├── types/                # TypeScript 타입 정의
+│   └── index.ts
+├── App.tsx               # 라우팅 설정
+├── main.tsx              # 앱 진입점
+└── index.css             # 글로벌 스타일
+```
 
-#### 선택 서류
-- 사업자등록증 (개인사업자/법인의 경우)
-
-#### 조건부 추가 서류 (자동 안내)
-- **미성년자**: 법정대리인동의서, 가족관계증명서
-- **법인**: 법인등기부등본, 법인인감증명서
-
----
-
-## 🛠 기술 스택
-
-- **Frontend**: React 19, TypeScript
-- **Build Tool**: Vite 6.2
-- **Styling**: Tailwind CSS (CDN)
-- **Icons**: Lucide React
-- **Charts**: Recharts
-- **AI/OCR**:
-  - Google Gemini 2.5 Flash (기본)
-  - AllenAI OLMo OCR (선택 가능)
-
----
-
-## 📦 설치 방법
+## 시작하기
 
 ### 사전 요구사항
-- **Node.js** 18.0 이상
 
-### 1. 의존성 설치
+- Node.js 18.x 이상
+- npm 또는 yarn
+
+### 설치
 
 ```bash
+# 저장소 클론
+git clone <repository-url>
+cd autoscan-sell
+
+# 의존성 설치
 npm install
 ```
-
----
-
-## 🔑 환경 변수 설정
-
-프로젝트 루트에 `.env` 파일을 생성하고 API 키를 설정하세요.
-
-### Gemini 사용 시 (기본)
-
-```env
-GEMINI_API_KEY=your_gemini_api_key_here
-```
-
-**Gemini API 키 발급**: [Google AI Studio](https://aistudio.google.com/apikey)
-
-### OLMo OCR 사용 시
-
-```env
-DEEPINFRA_API_KEY=your_deepinfra_api_key_here
-```
-
-**DeepInfra API 키 발급**: [DeepInfra](https://deepinfra.com/)
-
----
-
-## 🚀 실행 방법
 
 ### 개발 서버 실행
 
@@ -101,7 +73,7 @@ DEEPINFRA_API_KEY=your_deepinfra_api_key_here
 npm run dev
 ```
 
-기본적으로 `http://localhost:3000`에서 실행됩니다.
+브라우저에서 `http://localhost:5173` 으로 접속합니다.
 
 ### 프로덕션 빌드
 
@@ -109,150 +81,82 @@ npm run dev
 npm run build
 ```
 
+빌드된 파일은 `dist/` 폴더에 생성됩니다.
+
 ### 빌드 미리보기
 
 ```bash
 npm run preview
 ```
 
----
+## 환경 설정
 
-## 🔄 OCR 모델 선택 가이드
-
-이 프로젝트는 **두 가지 OCR 모델**을 지원합니다. `App.tsx`의 import만 변경하면 됩니다.
-
-### 옵션 1: **Gemini AI** (기본 설정)
-
-**장점**:
-- ✅ 높은 정확도
-- ✅ 무료 할당량 제공
-- ✅ Vision API 포함
-
-**설정 방법**:
-```typescript
-// App.tsx (5번째 줄)
-import { scanDocument, predictCarPrice, analyzeSellerRequirements } from './services/geminiService';
-```
-
-### 옵션 2: **OLMo OCR** (오픈소스 모델)
-
-**장점**:
-- ✅ 오픈소스 기반
-- ✅ 문서 특화 OCR
-- ✅ DeepInfra 통해 간편하게 사용
-
-**설정 방법**:
-```typescript
-// App.tsx (5번째 줄)
-import { scanDocument, predictCarPrice, analyzeSellerRequirements } from './services/olmoService';
-```
-
-**참고**: 환경 변수도 함께 변경해야 합니다!
-
----
-
-## 📁 프로젝트 구조
-
-```
-autoscan-sell/
-├── components/              # React 컴포넌트
-│   ├── DocumentCard.tsx     # 서류 업로드 및 OCR 결과 표시 카드
-│   └── ResultView.tsx       # 최종 분석 결과 및 가격 산출 화면
-├── services/                # AI/OCR 서비스 로직
-│   ├── geminiService.ts     # Google Gemini AI 통합
-│   └── olmoService.ts       # OLMo OCR 통합 (DeepInfra) - 유료
-├── App.tsx                  # 메인 애플리케이션
-├── types.ts                 # TypeScript 타입 정의
-├── index.tsx                # 앱 진입점
-├── index.html               # HTML 템플릿
-├── vite.config.ts           # Vite 설정
-├── tsconfig.json            # TypeScript 설정
-└── package.json             # 프로젝트 메타데이터
-```
-
----
-
-## 🎯 사용 방법
-
-### 1단계: 서류 접수 및 분석
-1. 필수 서류를 드래그 앤 드롭 또는 클릭하여 업로드
-2. AI가 자동으로 문서를 분석하고 텍스트 추출
-3. 추출된 데이터를 확인하고 필요 시 수정
-4. 판매자 유형이 자동으로 분석되며, 필요한 추가 서류가 표시됨
-
-### 2단계: 최종 확인
-1. 모든 서류의 추출 데이터 최종 검토
-2. "AI 가격 산출 실행" 버튼 클릭
-
-### 3단계: 결과 확인
-1. AI가 산출한 차량 가격 범위 확인
-2. 가격 산출 근거 및 시장 동향 검토
-3. 서류 요약 정보 확인
-
----
-
-## 🔧 개발 관련
-
-### 주요 컴포넌트
-
-#### `DocumentCard.tsx`
-- 서류별 업로드 UI 제공
-- 드래그 앤 드롭 지원
-- OCR 진행 상태 표시
-- 원본 이미지 vs 추출 데이터 양분할 화면
-- 실시간 데이터 수정 기능
-
-#### `ResultView.tsx`
-- 최종 분석 결과 표시
-- 가격 차트 시각화
-- 서류 요약 정보 제공
-
-#### `geminiService.ts` / `olmoService.ts`
-- 이미지 → Base64 변환
-- OCR API 호출
-- 판매자 유형 분석
-- 차량 가격 예측
-
-### 환경 변수 처리
-
-Vite는 `vite.config.ts`에서 환경 변수를 `process.env`로 매핑합니다:
+백엔드 서버 주소는 `src/store/useStore.ts` 파일에서 설정할 수 있습니다:
 
 ```typescript
-define: {
-  'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-  'process.env.DEEPINFRA_API_KEY': JSON.stringify(env.DEEPINFRA_API_KEY)
+const socket = io('http://localhost:3001')  // 백엔드 서버 주소
+```
+
+## 페이지 설명
+
+### 고객 페이지 (`/`)
+
+고객이 사용하는 메인 페이지입니다:
+1. 전화번호로 세션 시작
+2. 필요 서류 업로드 (드래그 앤 드롭 지원)
+3. 차량 정보 입력
+4. AI 가격 예측 결과 확인
+5. PDF 보고서 다운로드
+
+### 상담원 대시보드 (`/agent`)
+
+상담원이 사용하는 관리 페이지입니다:
+1. 사번/이름으로 로그인
+2. 실시간 고객 세션 목록 확인
+3. 업로드된 서류 확인 및 이미지 확대/축소 (50%~300%)
+4. OCR 결과 검토
+5. 차량 정보 및 가격 예측 확인
+6. 추가 서류 요청 전송
+
+## 연동 API
+
+### OCR API
+- URL: `https://ganada0037--ocr-serverless-split-ocrservice-analyze-dev.modal.run`
+- Method: POST (multipart/form-data)
+- 응답 형식:
+```json
+{
+  "status": "success",
+  "count": 5,
+  "results": [
+    {
+      "text": "인식된 텍스트",
+      "confidence": { "yolo": 0.66, "ocr": 0.99 }
+    }
+  ]
 }
 ```
 
----
+### 가격 예측 API
+- URL: `https://xgltqfyf77.execute-api.ap-northeast-2.amazonaws.com/predict`
+- Method: POST (application/json)
+- 응답 형식:
+```json
+{
+  "predicted_price": 25000000
+}
+```
 
-## ⚠️ 주의사항
+## 스크립트
 
-1. **API 키 보안**: `.env` 파일은 절대 Git에 커밋하지 마세요 (`.gitignore`에 포함됨)
-2. **이미지 형식**: 현재 이미지 파일(`image/*`)만 지원합니다
-3. **브라우저 호환성**: 최신 Chrome, Firefox, Safari 권장
-4. **개발 서버 재시작**: `.env` 파일 변경 시 개발 서버를 재시작해야 합니다
+| 명령어 | 설명 |
+|--------|------|
+| `npm run dev` | 개발 서버 실행 |
+| `npm run build` | 프로덕션 빌드 |
+| `npm run preview` | 빌드 결과 미리보기 |
+| `npm run lint` | ESLint 실행 |
 
----
+## 관련 프로젝트
 
-## 🐛 문제 해결
-
-### OCR이 401 에러를 반환할 때
-- `.env` 파일의 API 키가 올바른지 확인
-- 개발 서버를 재시작 (`Ctrl+C` 후 `npm run dev`)
-- `vite.config.ts`의 환경 변수 매핑 확인
-
-### 드래그 앤 드롭이 작동하지 않을 때
-- 브라우저를 새로고침 (F5 또는 Ctrl+R)
-- 이미지 파일만 지원 (PNG, JPG, JPEG 등)
-
-### 서류가 중복으로 추가될 때
-- 최신 코드로 업데이트되었는지 확인
-- 브라우저 캐시 삭제 후 재실행
-
----
-
-## 📄 라이선스
-
-이 프로젝트는 학습 및 개발 목적으로 제작되었습니다.
+- [autoscan-sell-backend](../autoscan-sell-backend) - 백엔드 서버
 
