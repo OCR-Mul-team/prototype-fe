@@ -1,20 +1,21 @@
-import { useState } from 'react'
-import type { VehicleInfo } from '../types'
+import { useState, useEffect, useMemo } from 'react'
+import type { VehicleInfo, OCRResult } from '../types'
 
 interface VehicleInfoFormProps {
   onSubmit: (vehicleInfo: VehicleInfo) => void
   isLoading?: boolean
   disabled?: boolean
+  ocrResults?: OCRResult[]  // OCR 결과에서 추출된 정보
 }
 
 const INITIAL_VEHICLE_INFO: VehicleInfo = {
   modelName: 'Hyundai',
-  ageMonths: 36,
-  distance: 50000,
-  displacement: 2000,
+  ageMonths: 0,
+  distance: 0,
+  displacement: 0,
   fuel: 'gasoline',
   color: 'white',
-  newPrice: 30000000,
+  newPrice: 0,
   sunroof: false,
   panoramaSunroof: false,
   frontSeatHeater: false,
@@ -28,8 +29,102 @@ const INITIAL_VEHICLE_INFO: VehicleInfo = {
   minorDefect: 'low(0-5)',
 }
 
-export default function VehicleInfoForm({ onSubmit, isLoading, disabled }: VehicleInfoFormProps) {
-  const [vehicleInfo, setVehicleInfo] = useState<VehicleInfo>(INITIAL_VEHICLE_INFO)
+// OCR 결과에서 차량 정보 추출
+function extractVehicleInfoFromOcr(ocrResults: OCRResult[]): Partial<VehicleInfo> {
+  const extracted: Partial<VehicleInfo> = {}
+
+  for (const ocr of ocrResults) {
+    const data = ocr.extractedData
+
+    // 차량등록증에서 정보 추출
+    if (ocr.documentType === 'vehicle_registration') {
+      // 차종/브랜드 추출
+      const carName = data['차명'] || data['차종'] || data['자동차명'] || ''
+      if (carName.includes('제네시스') || carName.toLowerCase().includes('genesis')) {
+        extracted.modelName = 'Genesis'
+      } else if (carName.includes('현대') || carName.toLowerCase().includes('hyundai')) {
+        extracted.modelName = 'Hyundai'
+      }
+
+      // 배기량 추출
+      const displacement = data['배기량'] || data['총배기량'] || ''
+      const displacementNum = parseInt(displacement.replace(/[^0-9]/g, ''))
+      if (!isNaN(displacementNum) && displacementNum > 0) {
+        extracted.displacement = displacementNum
+      }
+
+      // 연식 추출 (최초등록일 기준)
+      const regDate = data['최초등록일'] || data['등록일자'] || data['등록일'] || ''
+      if (regDate) {
+        const yearMatch = regDate.match(/(\d{4})/)
+        if (yearMatch) {
+          const regYear = parseInt(yearMatch[1])
+          const currentYear = new Date().getFullYear()
+          const currentMonth = new Date().getMonth() + 1
+          const monthMatch = regDate.match(/\d{4}[.\-\/](\d{1,2})/)
+          const regMonth = monthMatch ? parseInt(monthMatch[1]) : 1
+          extracted.ageMonths = (currentYear - regYear) * 12 + (currentMonth - regMonth)
+        }
+      }
+
+      // 연료 타입 추출
+      const fuel = data['연료'] || data['사용연료'] || data['연료종류'] || ''
+      if (fuel.includes('디젤') || fuel.includes('경유')) {
+        extracted.fuel = 'diesel'
+      } else if (fuel.includes('가솔린') || fuel.includes('휘발유')) {
+        extracted.fuel = 'gasoline'
+      } else if (fuel.includes('전기')) {
+        extracted.fuel = 'electric'
+      } else if (fuel.includes('하이브리드')) {
+        extracted.fuel = 'hybrid'
+      } else if (fuel.includes('LPG') || fuel.includes('가스')) {
+        extracted.fuel = 'lpg'
+      }
+
+      // 색상 추출
+      const color = data['색상'] || data['차량색상'] || data['차색'] || ''
+      if (color.includes('검') || color.includes('블랙') || color.includes('흑')) {
+        extracted.color = 'black'
+      } else if (color.includes('흰') || color.includes('화이트') || color.includes('백')) {
+        extracted.color = 'white'
+      } else if (color.includes('회') || color.includes('그레이') || color.includes('실버')) {
+        extracted.color = 'gray'
+      } else if (color) {
+        extracted.color = 'other'
+      }
+    }
+  }
+
+  return extracted
+}
+
+export default function VehicleInfoForm({ onSubmit, isLoading, disabled, ocrResults = [] }: VehicleInfoFormProps) {
+  // OCR에서 추출한 정보
+  const ocrExtractedInfo = useMemo(() => extractVehicleInfoFromOcr(ocrResults), [ocrResults])
+
+  // 어떤 필드가 OCR로 자동 입력되었는지 추적
+  const autoFilledFields = useMemo(() => {
+    const fields: Set<keyof VehicleInfo> = new Set()
+    for (const key of Object.keys(ocrExtractedInfo) as (keyof VehicleInfo)[]) {
+      if (ocrExtractedInfo[key] !== undefined) {
+        fields.add(key)
+      }
+    }
+    return fields
+  }, [ocrExtractedInfo])
+
+  const [vehicleInfo, setVehicleInfo] = useState<VehicleInfo>({
+    ...INITIAL_VEHICLE_INFO,
+    ...ocrExtractedInfo,
+  })
+
+  // OCR 결과가 변경되면 정보 업데이트
+  useEffect(() => {
+    setVehicleInfo((prev) => ({
+      ...prev,
+      ...ocrExtractedInfo,
+    }))
+  }, [ocrExtractedInfo])
 
   const handleChange = (field: keyof VehicleInfo, value: VehicleInfo[keyof VehicleInfo]) => {
     setVehicleInfo((prev) => ({ ...prev, [field]: value }))
@@ -50,11 +145,14 @@ export default function VehicleInfoForm({ onSubmit, isLoading, disabled }: Vehic
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               브랜드
+              {autoFilledFields.has('modelName') && (
+                <span className="ml-2 text-xs text-green-600 font-normal">(자동 입력됨)</span>
+              )}
             </label>
             <select
               value={vehicleInfo.modelName}
               onChange={(e) => handleChange('modelName', e.target.value as VehicleInfo['modelName'])}
-              className="input-field"
+              className={`input-field ${autoFilledFields.has('modelName') ? 'border-green-300 bg-green-50' : ''}`}
             >
               <option value="Hyundai">현대</option>
               <option value="Genesis">제네시스</option>
@@ -65,15 +163,18 @@ export default function VehicleInfoForm({ onSubmit, isLoading, disabled }: Vehic
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               차량 연식 (개월)
+              {autoFilledFields.has('ageMonths') && (
+                <span className="ml-2 text-xs text-green-600 font-normal">(자동 입력됨)</span>
+              )}
             </label>
             <input
               type="number"
               min="1"
               max="240"
-              value={vehicleInfo.ageMonths}
+              value={vehicleInfo.ageMonths || ''}
               onChange={(e) => handleChange('ageMonths', Number(e.target.value))}
-              className="input-field"
-              placeholder="예: 36 (3년)"
+              className={`input-field ${autoFilledFields.has('ageMonths') ? 'border-green-300 bg-green-50' : ''}`}
+              placeholder="정보를 입력해주세요"
             />
             <p className="text-xs text-gray-500 mt-1">
               현재 기준 차량 출고 후 경과 개월 수
@@ -88,10 +189,10 @@ export default function VehicleInfoForm({ onSubmit, isLoading, disabled }: Vehic
             <input
               type="number"
               min="0"
-              value={vehicleInfo.distance}
+              value={vehicleInfo.distance || ''}
               onChange={(e) => handleChange('distance', Number(e.target.value))}
               className="input-field"
-              placeholder="예: 50000"
+              placeholder="정보를 입력해주세요"
             />
           </div>
 
@@ -99,14 +200,17 @@ export default function VehicleInfoForm({ onSubmit, isLoading, disabled }: Vehic
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               배기량 (cc)
+              {autoFilledFields.has('displacement') && (
+                <span className="ml-2 text-xs text-green-600 font-normal">(자동 입력됨)</span>
+              )}
             </label>
             <input
               type="number"
               min="0"
-              value={vehicleInfo.displacement}
+              value={vehicleInfo.displacement || ''}
               onChange={(e) => handleChange('displacement', Number(e.target.value))}
-              className="input-field"
-              placeholder="예: 2000"
+              className={`input-field ${autoFilledFields.has('displacement') ? 'border-green-300 bg-green-50' : ''}`}
+              placeholder="정보를 입력해주세요"
             />
           </div>
 
@@ -114,11 +218,14 @@ export default function VehicleInfoForm({ onSubmit, isLoading, disabled }: Vehic
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               연료 타입
+              {autoFilledFields.has('fuel') && (
+                <span className="ml-2 text-xs text-green-600 font-normal">(자동 입력됨)</span>
+              )}
             </label>
             <select
               value={vehicleInfo.fuel}
               onChange={(e) => handleChange('fuel', e.target.value as VehicleInfo['fuel'])}
-              className="input-field"
+              className={`input-field ${autoFilledFields.has('fuel') ? 'border-green-300 bg-green-50' : ''}`}
             >
               <option value="gasoline">가솔린</option>
               <option value="diesel">디젤</option>
@@ -132,11 +239,14 @@ export default function VehicleInfoForm({ onSubmit, isLoading, disabled }: Vehic
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               외장 색상
+              {autoFilledFields.has('color') && (
+                <span className="ml-2 text-xs text-green-600 font-normal">(자동 입력됨)</span>
+              )}
             </label>
             <select
               value={vehicleInfo.color}
               onChange={(e) => handleChange('color', e.target.value as VehicleInfo['color'])}
-              className="input-field"
+              className={`input-field ${autoFilledFields.has('color') ? 'border-green-300 bg-green-50' : ''}`}
             >
               <option value="white">흰색</option>
               <option value="black">검정</option>
@@ -154,10 +264,10 @@ export default function VehicleInfoForm({ onSubmit, isLoading, disabled }: Vehic
               type="number"
               min="0"
               step="1000000"
-              value={vehicleInfo.newPrice}
+              value={vehicleInfo.newPrice || ''}
               onChange={(e) => handleChange('newPrice', Number(e.target.value))}
               className="input-field"
-              placeholder="예: 30000000"
+              placeholder="정보를 입력해주세요"
             />
             <p className="text-xs text-gray-500 mt-1">
               신차 출고 당시 가격을 입력해주세요.

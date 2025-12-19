@@ -231,7 +231,7 @@ export default function AgentDashboard() {
                         <>
                           <div className="flex items-center justify-between mb-1">
                             <span className="font-medium text-gray-900">
-                              {session.phoneNumber}
+                              {session.customerName ? `${session.customerName} 고객님` : session.phoneNumber}
                             </span>
                             <span className="text-xs text-gray-500">
                               {new Date(session.createdAt).toLocaleTimeString('ko-KR', {
@@ -241,6 +241,8 @@ export default function AgentDashboard() {
                             </span>
                           </div>
                           <div className="flex items-center space-x-2 text-xs text-gray-600">
+                            {session.customerName && <span>{session.phoneNumber}</span>}
+                            {session.customerName && <span>•</span>}
                             <span>서류 {session.documents.length}건</span>
                             {session.vehicleInfo && (
                               <>
@@ -277,10 +279,15 @@ export default function AgentDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-lg font-semibold text-gray-900">
-                      {currentSession?.phoneNumber}
+                      {currentSession?.customerName ? (
+                        <span>{currentSession.customerName} <span className="text-primary">고객님</span></span>
+                      ) : (
+                        currentSession?.phoneNumber
+                      )}
                     </h2>
                     <p className="text-sm text-gray-600">
-                      세션 ID: {selectedSession}
+                      {currentSession?.customerName && `${currentSession.phoneNumber} • `}
+                      세션 ID: {selectedSession?.slice(0, 12)}...
                     </p>
                   </div>
                   <div className="flex items-center space-x-3">

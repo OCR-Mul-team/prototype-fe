@@ -72,8 +72,8 @@ class SocketService {
 
   // === 고객 이벤트 ===
 
-  customerJoin(phoneNumber: string): void {
-    this.socket?.emit('customer:join', phoneNumber)
+  customerJoin(phoneNumber: string, customerName: string): void {
+    this.socket?.emit('customer:join', { phoneNumber, customerName })
   }
 
   uploadDocument(document: UploadedDocument): void {
@@ -99,6 +99,13 @@ class SocketService {
 
   onPriceReport(handler: (prediction: PricePrediction) => void): void {
     this.registerEvent('customer:price_report', handler as (...args: unknown[]) => void)
+  }
+
+  // 고객용: OCR 완료 이벤트
+  onCustomerOcrCompleted(handler: (documentId: string, ocrResult: OCRResult) => void): void {
+    this.registerEvent('customer:ocr_completed', ((data: { documentId: string; ocrResult: OCRResult }) => {
+      handler(data.documentId, data.ocrResult)
+    }) as (...args: unknown[]) => void)
   }
 
   // === 상담원 이벤트 ===

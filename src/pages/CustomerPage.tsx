@@ -7,16 +7,21 @@ import ImageViewerModal from '../components/ImageViewerModal'
 import { socketService } from '../services/socket'
 import { fileToBase64 } from '../services/api'
 import { useSessionStore } from '../store/sessionStore'
-import type { UploadedDocument, VehicleInfo } from '../types'
+import type { UploadedDocument, VehicleInfo, OCRResult } from '../types'
 
 export default function CustomerPage() {
   const [phoneNumber, setPhoneNumber] = useState('')
+  const [customerName, setCustomerName] = useState('')
   const [isJoined, setIsJoined] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [showPriceReport, setShowPriceReport] = useState(false)
   const [activeTab, setActiveTab] = useState<'documents' | 'vehicle'>('documents')
   const [vehicleInfoSubmitted, setVehicleInfoSubmitted] = useState(false)
   const [selectedImage, setSelectedImage] = useState<UploadedDocument | null>(null)
+  const [showAgentContact, setShowAgentContact] = useState(false)
+
+  // 상담원 연결 번호 (실제 서비스에서는 환경변수나 서버에서 가져옴)
+  const AGENT_PHONE_NUMBER = '1588-1234'
 
   const {
     currentSession,
@@ -29,6 +34,7 @@ export default function CustomerPage() {
     setPriceReport,
     isConnected,
     setConnected,
+    updateCustomerDocumentOcr,
   } = useSessionStore()
 
   // 소켓 연결 및 이벤트 리스너 설정
@@ -55,6 +61,12 @@ export default function CustomerPage() {
           setPriceReport(prediction)
           setShowPriceReport(true)
         })
+
+        // OCR 완료 이벤트 (상담원 연결 버튼 표시용)
+        socketService.onCustomerOcrCompleted((documentId, ocrResult) => {
+          console.log('[Customer] OCR completed for document:', documentId)
+          updateCustomerDocumentOcr(documentId, ocrResult)
+        })
       } catch (error) {
         console.error('Socket connection failed:', error)
         setConnected(false)
@@ -67,10 +79,15 @@ export default function CustomerPage() {
       socketService.disconnect()
       setConnected(false)
     }
-  }, [setCurrentSession, setAdditionalDocumentRequest, setPriceReport, setConnected])
+  }, [setCurrentSession, setAdditionalDocumentRequest, setPriceReport, setConnected, updateCustomerDocumentOcr])
 
-  // 전화번호로 세션 시작
+  // 전화번호와 이름으로 세션 시작
   const handleJoin = useCallback(() => {
+    if (!customerName.trim()) {
+      alert('이름을 입력해주세요.')
+      return
+    }
+
     if (!phoneNumber.trim()) {
       alert('전화번호를 입력해주세요.')
       return
@@ -84,8 +101,8 @@ export default function CustomerPage() {
     }
 
     setIsLoading(true)
-    socketService.customerJoin(phoneNumber)
-  }, [phoneNumber])
+    socketService.customerJoin(phoneNumber, customerName)
+  }, [phoneNumber, customerName])
 
   // 서류 업로드 처리
   const handleUpload = useCallback(
@@ -145,12 +162,25 @@ export default function CustomerPage() {
               </div>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">내차팔기</h1>
               <p className="text-gray-600">
-                전화번호를 입력하여 상담을 시작해주세요.<br />
+                이름과 전화번호를 입력하여 상담을 시작해주세요.<br />
                 서류 제출과 차량 정보 입력을 진행할 수 있습니다.
               </p>
             </div>
 
             <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
+                  이름
+                </label>
+                <input
+                  type="text"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  placeholder="홍길동"
+                  className="input-field text-center text-lg"
+                />
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2 text-left">
                   전화번호
@@ -219,18 +249,46 @@ export default function CustomerPage() {
 
         {/* 상태 알림 영역 - 통합 */}
         <div className="mb-6 space-y-3">
-          {/* 상담원 확인 중 메시지 */}
-          {currentSession && currentSession.documents.length > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center space-x-3">
-              <svg className="animate-pulse w-6 h-6 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-              <p className="text-sm text-blue-700">
-                상담원이 서류를 확인하고 있습니다. 잠시만 기다려주세요.
-              </p>
-            </div>
-          )}
+          {/* 상담원 확인 중 메시지 + 연결 버튼 */}
+          {currentSession && currentSession.documents.length > 0 && (() => {
+            // OCR 완료된 서류 수 확인
+            const ocrCompletedDocs = currentSession.documents.filter(doc => doc.ocrResult)
+            const allOcrCompleted = ocrCompletedDocs.length > 0 && ocrCompletedDocs.length === currentSession.documents.length
+
+            return (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  {allOcrCompleted ? (
+                    <svg className="w-6 h-6 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <svg className="animate-pulse w-6 h-6 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  )}
+                  <p className="text-sm text-blue-700">
+                    {allOcrCompleted
+                      ? '서류 확인이 완료되었습니다. 상담원과 통화하시려면 연결 버튼을 눌러주세요.'
+                      : '상담원이 서류를 확인하고 있습니다. 잠시만 기다려주세요.'
+                    }
+                  </p>
+                </div>
+                {allOcrCompleted && (
+                  <button
+                    onClick={() => setShowAgentContact(true)}
+                    className="btn-primary py-2 px-4 text-sm flex items-center space-x-2 whitespace-nowrap ml-4"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    </svg>
+                    <span>상담원 연결</span>
+                  </button>
+                )}
+              </div>
+            )
+          })()}
 
           {/* 추가 서류 요청 알림 */}
           {additionalDocumentRequest && (
@@ -324,6 +382,10 @@ export default function CustomerPage() {
                 onSubmit={handleVehicleInfoSubmit}
                 isLoading={isLoading}
                 disabled={vehicleInfoSubmitted}
+                ocrResults={currentSession?.documents
+                  .filter((doc): doc is UploadedDocument & { ocrResult: OCRResult } => !!doc.ocrResult)
+                  .map((doc) => doc.ocrResult) || []
+                }
               />
             </div>
           )}
@@ -360,6 +422,48 @@ export default function CustomerPage() {
           </svg>
           <span>가격 보고서 보기</span>
         </button>
+      )}
+
+      {/* 상담원 연결 모달 */}
+      {showAgentContact && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full mx-4 p-6">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">상담원 연결</h3>
+              <p className="text-gray-600 mb-6">
+                아래 번호로 전화하시면 상담원과 바로 연결됩니다.
+              </p>
+
+              <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                <p className="text-2xl font-bold text-primary">{AGENT_PHONE_NUMBER}</p>
+                <p className="text-sm text-gray-500 mt-1">평일 09:00 - 18:00</p>
+              </div>
+
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setShowAgentContact(false)}
+                  className="flex-1 py-3 px-4 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                >
+                  닫기
+                </button>
+                <a
+                  href={`tel:${AGENT_PHONE_NUMBER.replace(/-/g, '')}`}
+                  className="flex-1 py-3 px-4 bg-primary text-white rounded-lg font-medium hover:bg-primary-dark transition-colors flex items-center justify-center space-x-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                  </svg>
+                  <span>전화하기</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

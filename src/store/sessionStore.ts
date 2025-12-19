@@ -20,6 +20,7 @@ interface SessionState {
   setAdditionalDocumentRequest: (message: string | null) => void
   setPriceReport: (prediction: PricePrediction | null) => void
   setConnected: (connected: boolean) => void
+  updateCustomerDocumentOcr: (documentId: string, ocrResult: OCRResult) => void
 
   // 상담원 액션 (중복 방지 로직 포함)
   addOrUpdateSession: (session: CustomerSession) => void
@@ -87,6 +88,26 @@ export const useSessionStore = create<SessionState>((set) => ({
   setPriceReport: (prediction) => set({ priceReport: prediction }),
 
   setConnected: (connected) => set({ isConnected: connected }),
+
+  // 고객용: 문서의 OCR 결과 업데이트
+  updateCustomerDocumentOcr: (documentId, ocrResult) =>
+    set((state) => ({
+      currentSession: state.currentSession
+        ? {
+            ...state.currentSession,
+            documents: state.currentSession.documents.map((doc) =>
+              doc.id === documentId
+                ? {
+                    ...doc,
+                    type: ocrResult.documentType,
+                    status: ocrResult.isValid ? 'valid' : 'needs_review',
+                    ocrResult,
+                  }
+                : doc
+            ),
+          }
+        : null,
+    })),
 
   // 상담원 액션 - 세션 추가 또는 업데이트 (중복 방지)
   addOrUpdateSession: (session) =>
